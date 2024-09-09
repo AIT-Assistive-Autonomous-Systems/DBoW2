@@ -12,6 +12,13 @@
   <buildtool_depend>cmake</buildtool_depend>
   
   <build_depend>libopencv-dev</build_depend>
+  <build_depend>libboost-serialization-dev</build_depend>
+
+  <build_export_depend>libopencv-dev</build_export_depend>
+  <build_export_depend>libboost-serialization-dev</build_export_depend>
+
+  <exec_eend>libopencv-dev</exec_eend>
+  <exec_eend>libboost-serialization</exec_eend>
 
   <export>
     <build_type>cmake</build_type>
