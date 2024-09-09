@@ -32,7 +32,7 @@
 #include "BowVector.h"
 #include "ScoringObject.h"
 
-#include "../DUtils/Random.h"
+#include <random>
 
 using namespace std;
 
@@ -348,6 +348,11 @@ protected:
   void createScoringObject();
 
   /**
+   * Creates distribution object
+   */
+  void createRandomDistributionObject();
+
+  /**
    * Returns a set of pointers to descriptores
    * @param training_features all the features
    * @param features (out) pointers to the training features
@@ -438,6 +443,13 @@ protected:
   /// this condition holds: m_words[wid]->word_id == wid
   std::vector<Node*> m_words;
 
+  /// Radom engine generating random numbers (state of many impls)
+  /// FIXME: If you want to share the state, pass engines and distributions.
+  mutable std::minstd_rand0 m_rd_engine;
+  /// Distribution used in init of k-means
+  mutable std::uniform_int_distribution<int> m_ud_int;
+  /// Distribution used fo init of k-means
+  mutable std::uniform_real_distribution<double> m_ud_real;
 };
 
 // --------------------------------------------------------------------------
@@ -504,6 +516,15 @@ void TemplatedVocabulary<TDescriptor,F>::createScoringObject()
       break;
 
   }
+}
+
+// --------------------------------------------------------------------------
+
+template<class TDescriptor, class F>
+void TemplatedVocabulary<TDescriptor,F>::createRandomDistributionObject()
+{
+  std::random_device rd;
+  m_rd_engine = std::minstd_rand0({rd(), rd(), rd(), rd(), rd()});
 }
 
 // --------------------------------------------------------------------------
@@ -856,15 +877,17 @@ void TemplatedVocabulary<TDescriptor,F>::initiateClustersKMpp(
   // 5. Now that the initial centers have been chosen, proceed using standard k-means
   //    clustering.
 
-  DUtils::Random::SeedRandOnce();
-
   clusters.resize(0);
   clusters.reserve(m_k);
   vector<double> min_dists(pfeatures.size(), std::numeric_limits<double>::max());
+  const double gtz_min = std::nextafter(0.0, std::numeric_limits<double>::max());
+
+  using ud_int_params = typename decltype(m_ud_int)::param_type;
+  using ud_real_params = typename decltype(m_ud_real)::param_type;
 
   // 1.
 
-  int ifeature = DUtils::Random::RandomInt(0, pfeatures.size()-1);
+  int ifeature = m_ud_int(m_rd_engine, ud_int_params(0, pfeatures.size() - 1));
 
   // create first cluster
   clusters.push_back(*pfeatures[ifeature]);
@@ -893,14 +916,13 @@ void TemplatedVocabulary<TDescriptor,F>::initiateClustersKMpp(
 
     // 3.
     double dist_sum = std::accumulate(min_dists.begin(), min_dists.end(), 0.0);
+    const double dist_sum_next = std::nextafter(dist_sum, std::numeric_limits<double>::max());
 
     if(dist_sum > 0)
     {
       double cut_d;
-      do
-      {
-        cut_d = DUtils::Random::RandomValue<double>(0, dist_sum);
-      } while(cut_d == 0.0);
+
+      cut_d = m_ud_real(m_rd_engine, ud_real_params(gtz_min, dist_sum_next));
 
       double d_up_now = 0;
       for(dit = min_dists.begin(); dit != min_dists.end(); ++dit)
