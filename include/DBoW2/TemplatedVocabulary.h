@@ -445,7 +445,7 @@ protected:
 
   /// Radom engine generating random numbers (state of many impls)
   /// FIXME: If you want to share the state, pass engines and distributions.
-  mutable std::minstd_rand0 m_rd_engine;
+  mutable std::default_random_engine m_rd_engine;
   /// Distribution used in init of k-means
   mutable std::uniform_int_distribution<int> m_ud_int;
   /// Distribution used fo init of k-means
@@ -461,6 +461,7 @@ TemplatedVocabulary<TDescriptor,F>::TemplatedVocabulary
   m_scoring_object(NULL)
 {
   createScoringObject();
+  createRandomDistributionObject();
 }
 
 // --------------------------------------------------------------------------
@@ -524,7 +525,8 @@ template<class TDescriptor, class F>
 void TemplatedVocabulary<TDescriptor,F>::createRandomDistributionObject()
 {
   std::random_device rd;
-  m_rd_engine = std::minstd_rand0({rd(), rd(), rd(), rd(), rd()});
+  std::seed_seq seq{rd(), rd(), rd(), rd(), rd()};
+  m_rd_engine = std::default_random_engine(seq);
 }
 
 // --------------------------------------------------------------------------
@@ -1499,6 +1501,7 @@ bool TemplatedVocabulary<TDescriptor,F>::loadFromBinaryFile(const std::string &f
   f.read((char*)&m_scoring, sizeof(m_scoring));
   f.read((char*)&m_weighting, sizeof(m_weighting));
   createScoringObject();
+  createRandomDistributionObject();
 
   m_words.clear();
   m_words.reserve(pow((double)m_k, (double)m_L + 1));
@@ -1694,6 +1697,7 @@ void TemplatedVocabulary<TDescriptor,F>::load(const cv::FileStorage &fs,
   m_weighting = (WeightingType)((int)fvoc["weightingType"]);
 
   createScoringObject();
+  createRandomDistributionObject();
 
   // nodes
   cv::FileNode fn = fvoc["nodes"];
